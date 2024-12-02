@@ -3,10 +3,10 @@ use std::{env, error::Error, fs, io::{self, BufRead}, path::Path};
 use regex::Regex;
 
 fn main() {
-    println!("\n----- Advent of Code 2024 - Puzzle 1 -----");
+    println!("\n----- Advent of Code 2024 - Puzzle 2 -----");
 
     let path = env::current_dir()
-        .map(|dir| dir.join("./puzzles/first/input.txt"))
+        .map(|dir| dir.join("./puzzles/second/input.txt"))
         .expect("Failed to get current directory");
 
     println!("Reading file: {:?}", path);
@@ -79,15 +79,14 @@ impl GetSimilarityScore for (Vec<i32>, Vec<i32>) {
         let mut multiplier = 0;
 
         loop {
-            // bugfix: when right has an element that does not exist in 
-
-
             let mut new_left_popped = left_popped;
             let mut new_right_popped = right_popped;
 
-            while left_popped == new_right_popped && !right.is_empty() {
-                println!("{}, {}", left_popped, new_right_popped);
-                multiplier += 1;
+            while left_popped <= new_right_popped && !right.is_empty() {
+                if left_popped == new_right_popped {
+                    multiplier += 1;
+                }
+
                 new_right_popped = right.pop().unwrap()
             }
 

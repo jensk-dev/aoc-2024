@@ -3,5 +3,5 @@ resolver = "3"
 members = [
     "puzzles/first",
     "puzzles/second"
-]
-default-members = ["puzzles/first", "puzzles/second"]
+, "puzzles/third"]
+default-members = ["puzzles/first", "puzzles/second", "puzzles/third"]
