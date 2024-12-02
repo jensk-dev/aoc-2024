@@ -1,7 +1,9 @@
 [workspace]
 resolver = "3"
-members = [
+members = ["puzzles/first", "puzzles/second", "puzzles/third", "puzzles/fourth"]
+default-members = [
     "puzzles/first",
-    "puzzles/second"
-, "puzzles/third"]
-default-members = ["puzzles/first", "puzzles/second", "puzzles/third"]
+    "puzzles/second",
+    "puzzles/third",
+    "puzzles/fourth",
+]
