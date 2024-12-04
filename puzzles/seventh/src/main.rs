@@ -49,12 +49,6 @@ impl WordSearch<'_> {
     }
 
     fn try_match_word(&self, word: Vec<char>, position: (isize, isize), velocity: (isize, isize)) -> Option<Vec<BoardPosition>> {
-        // iteratively check if the word matches the board in the given direction
-        // if it does, return true
-        // if it doesn't, return false
-        // if the word is exhausted, return true
-        // if the board is exhausted, return false
-
         let mut word: Vec<char> = word;
         let mut position = position;
         let mut positions = Vec::with_capacity(word.len());
@@ -91,15 +85,6 @@ impl Board {
 
     fn get_position_mut(&mut self, x: usize, y: usize) -> Option<&mut BoardPosition> {
         self.grid.get_mut(y)?.get_mut(x)
-    }
-
-    fn is_matched(&self, positions: &[BoardPosition]) -> bool {
-        for position in positions {
-            if !position.matches {
-                return false;
-            }
-        }
-        true
     }
 
     fn set_matched(&mut self, positions: &[BoardPosition]) {
@@ -161,13 +146,6 @@ struct WordSearchBuilder<'a> {
 }
 
 impl<'a> WordSearchBuilder<'a> {
-    fn new() -> Self {
-        WordSearchBuilder {
-            board: None,
-            word_to_match: None
-        }
-    }
-
     fn from_file(file_path: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
         let board = Board::from_file(file_path)?;
 
@@ -177,6 +155,7 @@ impl<'a> WordSearchBuilder<'a> {
         })
     }
 
+    #[allow(dead_code)]
     fn from_vecs(board: Vec<Vec<char>>) -> Result<Self, Box<dyn Error>> {
         let width = board.len();
         let height = board[0].len();
