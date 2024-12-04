@@ -38,10 +38,6 @@ impl WordSearch<'_> {
                     let word: Vec<char> = self.word_to_match.chars().collect();
                     
                     if let Some(matched) = self.try_match_word(word, (x, y), velocity) {
-                        if self.board.is_matched(&matched) {
-                            continue;
-                        }
-
                        self.board.set_matched(&matched);
                        count += 1;
                     }
