@@ -53,11 +53,7 @@ fn read_sequences(file_path: impl AsRef<Path>) -> Result<Vec<Vec<isize>>, Box<dy
                 .collect::<Result<Vec<isize>, _>>()?
         )
     }
-
-    for ele in &sequences {
-        println!("{:?}", ele)
-    }
-
+    
     Ok(sequences)
 }
 
