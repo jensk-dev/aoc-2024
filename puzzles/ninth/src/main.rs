@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let middle_number_count = sequences.iter()
         .filter(|sequence| page_order.is_in_order(sequence))
-        .map(|sequence| page_order.give_middle_value(sequence))
+        .map(|sequence| page_order.get_middle_value(sequence))
         .reduce(|a, b| a + b)
         .expect("Failed to reduce");
 
@@ -28,70 +28,81 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn read_sequences(file_path: impl AsRef<Path>) -> Result<Vec<Vec<i32>>, Box<dyn Error>> {
+fn read_sequences(file_path: impl AsRef<Path>) -> Result<Vec<Vec<isize>>, Box<dyn Error>> {
     let file = fs::File::open(file_path)?;
     let reader = io::BufReader::with_capacity(32 * 1024, file);
-    let regex = Regex::new(r"\d+")?;
+    let match_regex = Regex::new(r"\d+")?;
+    let forbidden_regex = Regex::new(r"\d+\|\d+")?;
 
     let mut sequences = Vec::new();
 
     for line in reader.lines(){
         let line = line?;
 
-        // while we havent reached an empty line, we keep reading
+        if forbidden_regex.is_match(&line) {
+            continue;
+        }
+
         if line.is_empty() {
             continue;
         }
 
         sequences.push(
-            regex.captures_iter(&line)
-                .map(|capture| capture.get(0).unwrap().as_str().parse::<i32>())
-                .collect::<Result<Vec<i32>, _>>()?
+            match_regex.captures_iter(&line)
+                .map(|capture| capture.get(0).unwrap().as_str().parse::<isize>())
+                .collect::<Result<Vec<isize>, _>>()?
         )
+    }
+
+    for ele in &sequences {
+        println!("{:?}", ele)
     }
 
     Ok(sequences)
 }
 
 struct PageOrder {
-    rules: HashMap<i32, usize>
+    succeeding_pages: HashMap<isize, HashSet<isize>>,
+    preceeding_pages: HashMap<isize, HashSet<isize>>
 }
 
 impl PageOrder {
-    pub fn give_in_order(&self, update: &[i32]) -> Vec<i32> {
-        let mut update: Vec<i32> = update.into();
-        
-        update.sort_by(|a, b| {
-            let a_index = self.rules.get(a).unwrap_or(&usize::MAX);
-            let b_index = self.rules.get(b).unwrap_or(&usize::MAX);
+    fn is_in_order(&self, update: &[isize]) -> bool {
+        for (x_idx, x) in update.iter().enumerate() {
+            for (y_idx, y) in update.iter().enumerate() {
+                if x_idx == y_idx {
+                    continue;
+                }
 
-            dbg!(a_index);
-            dbg!(b_index);
+                if x_idx < y_idx {
+                    if let Some(set) = self.succeeding_pages.get(&x) {
+                        if !set.contains(&y) {
+                            return false;
+                        }
+                    }
+                }
 
-            a_index.cmp(b_index)
-        });
+                if x_idx > y_idx {
+                    if let Some(set) = self.preceeding_pages.get(&x) {
+                        if !set.contains(&y) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
 
-        update
+        return true;
     }
 
-    fn is_in_order(&self, update: &[i32]) -> bool {
-        let ordered = self.give_in_order(update);
-
-        dbg!(&ordered);
-        dbg!(&update);
-    
-        ordered == update
-    }
-
-    fn give_middle_value(&self, update: &[i32]) -> i32 {
+    fn get_middle_value(&self, update: &[isize]) -> isize {
         let middle = update.len() / 2;
         update[middle]
     }
 }
 
 struct PageOrderBuilder {
-    numbers: HashSet<i32>,
-    rules: Vec<(i32, i32)>
+    rules: Vec<(isize, isize)>
 }
 
 impl PageOrderBuilder {
@@ -107,8 +118,8 @@ impl PageOrderBuilder {
 
             if regex.is_match(&line) {
                 let captures = regex.captures(&line).unwrap();
-                let a = captures.get(1).ok_or("Failed to get first number")?.as_str().parse::<i32>()?;
-                let b = captures.get(2).ok_or("Failed to get second number")?.as_str().parse::<i32>()?;
+                let a = captures.get(1).ok_or("Failed to get first number")?.as_str().parse::<isize>()?;
+                let b = captures.get(2).ok_or("Failed to get second number")?.as_str().parse::<isize>()?;
                 
                 page_order_builder = page_order_builder.add_rule(a, b);
             }
@@ -119,53 +130,41 @@ impl PageOrderBuilder {
 
     pub fn new() -> Self {
         Self {
-            numbers: HashSet::new(),
             rules: Vec::new()
         }
     }
 
-    pub fn add_rule(mut self, a: i32, b: i32) -> Self {
+    pub fn add_rule(mut self, a: isize, b: isize) -> Self {
         self.rules.push((a, b));
-        self.numbers.insert(a);
-        self.numbers.insert(b);
         self
     }
 
     pub fn build(self) -> PageOrder {
-        let mut numbers = self.numbers.into_iter().collect::<Vec<i32>>();
-        let mut swapped = true;
+        let mut succeeding_pages: HashMap<isize, HashSet<isize>> = HashMap::new();
+        let mut preceeding_pages: HashMap<isize, HashSet<isize>> = HashMap::new();
 
-        while swapped {
-            swapped = !self.rules.iter().all(|(a, b)| {
-                !Self::swap(&mut numbers, *a, *b)
-            });
+        for (left, right) in self.rules {
+            if let Some(set) = succeeding_pages.get_mut(&left) {
+                set.insert(right);
+            } else {
+                let mut new_set = HashSet::new();
+                new_set.insert(right);
+                succeeding_pages.insert(left, new_set);
+            }
+
+            if let Some(set) = preceeding_pages.get_mut(&right) {
+                set.insert(left);
+            } else {
+                let mut new_set = HashSet::new();
+                new_set.insert(left);
+                preceeding_pages.insert(right, new_set);
+            }
         }
 
         PageOrder {
-            rules: numbers.into_iter()
-                .enumerate()
-                .map(|(i, n)| (n, i))
-                .collect()
+            succeeding_pages,
+            preceeding_pages
         }
-    }
-
-    fn swap(numbers: &mut Vec<i32>, a: i32, b: i32) -> bool {
-        let a_index = numbers.iter().position(|&x| x == a);
-        let b_index = numbers.iter().position(|&x| x == b);
-
-        if a_index.is_none() || b_index.is_none() {
-            return false;
-        }
-
-        let a_index = a_index.unwrap();
-        let b_index = b_index.unwrap();
-
-        if a_index > b_index {
-            numbers.swap(a_index, b_index);
-            return true;
-        }
-
-        false
     }
 }
 
@@ -201,15 +200,15 @@ mod tests {
         
         let input = vec![75,47,61,53,29];
         assert!(page_order.is_in_order(&input));
-        assert!(page_order.give_middle_value(&input) == 61);
+        assert!(page_order.get_middle_value(&input) == 61);
 
         let input = vec![97,61,53,29,13];
         assert!(page_order.is_in_order(&input));
-        assert!(page_order.give_middle_value(&input) == 53);
+        assert!(page_order.get_middle_value(&input) == 53);
 
         let input = vec![75,29,13];
         assert!(page_order.is_in_order(&input));
-        assert!(page_order.give_middle_value(&input) == 29);
+        assert!(page_order.get_middle_value(&input) == 29);
 
         let input = vec![75,97,47,61,53];
         assert!(!page_order.is_in_order(&input));
